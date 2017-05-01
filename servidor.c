@@ -83,6 +83,8 @@ main(int argc, char **argv)
         imprimeTabuleiro(tabuleiro);
 
         int advContagem = 30;
+        int acertou = 0;                                                                // Guarda se última jogada foi efetiva.
+        int linha, coluna;
         //  Loop interno, quando tem algum cliente conectado    //
         while(cli != -1)  {
             char coordenadas[4] = {0};                                                  // Recebe as coordenadas.
@@ -118,8 +120,23 @@ main(int argc, char **argv)
             }
 
             //  Gera coordenadas para envio //
-            sprintf(coordenadas, "%c %d", ((rand() % TAMANHO) + 97), ((rand() % TAMANHO) + 1));
+            if(acertou) {                                                               // Verifica se acertou última jogada.
+                int orientacao = rand() % 2;                                            // 0 = vertical, 1 = horizontal.
+                if(orientacao)
+                    linha++;
+                else
+                    coluna++;
 
+                if(linha >= 10)
+                    linha -= 2;
+                if(coluna >= (9 + 97))
+                    coluna -= 2;
+            }                
+            else    {                                                                   // Se errou a última, gera aletoriamente.
+                linha = (rand() % TAMANHO) + 1;
+                coluna = (rand() % TAMANHO) + 97;
+            }
+            sprintf(coordenadas, "%c %d", coluna, linha);
 
             //  Envia ataque ao cliente //
             if(send(cli, (char *) &coordenadas, (size_t) strlen(coordenadas), 0) == -1) {
@@ -140,8 +157,12 @@ main(int argc, char **argv)
             }
 
             //  Verifica efetividade    //
-            if(efetivo)
+            if(efetivo) {
                 advContagem--;
+                acertou = 1;
+            }
+            else
+                acertou = 0;
 
             //  Verifica se venceu  //
             if(!advContagem)  {
