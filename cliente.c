@@ -129,6 +129,7 @@ main(int argc, char **argv)
                 fprintf(stderr, "Conexão com servidor caiu.\n");
                 break;
             }
+            comando[recebido] = '\0';
         
             trataCoordenadas(comando, &horizontal, &vertical);
         

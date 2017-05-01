@@ -107,6 +107,7 @@ marcaAtaque(int **tabuleiro, int *efetividade, int horizontal, int vertical)
 {
     int restantes = 30;
 
+printf("horizontal = %d, vertical = %d.\n", horizontal, vertical);
     //  Verifica se é recebimento de ataque //
     if(*efetividade == -1)  {
         //  Verifica se existe peça nas coordenadas //
