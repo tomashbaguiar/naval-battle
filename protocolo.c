@@ -42,7 +42,6 @@ recebeTabuleiro(char *arquivo)
     return tabuleiro;
 }
 
-/*
 int**
 geraTabuleiro()
 {
@@ -56,19 +55,20 @@ geraTabuleiro()
         for(int j = 0; j < TAMANHO; j++)
             tabuleiro[i][j] = 0;
 
-    //////////////////////////////////////////////
-    //
-    //
-    //
-    //////////////////////////////////////////////
-    
-    srand(time(NULL));
+    //  Coloca o Porta aviões   //
+    colocaNavio(tabuleiro, 5, 1);
 
-    int pos = rand() % 1;                                                               // 0 = horizontal, 1 = vertical.
+    //  Coloca os Navios tanque //
+    colocaNavio(tabuleiro, 4, 2);
 
+    //  Coloca os Contra-torpedeiros    //
+    colocaNavio(tabuleiro, 3, 3);
 
-}///////////////////////////////////////////////////////////////////////
-*/
+    //  Coloca os submarinos    //
+    colocaNavio(tabuleiro, 2, 4);
+
+    return tabuleiro;
+}
     
 void
 imprimeTabuleiro(int **tabuleiro)
@@ -105,6 +105,8 @@ imprimeTabuleiro(int **tabuleiro)
 int
 marcaAtaque(int **tabuleiro, int *efetividade, int horizontal, int vertical)
 {
+    int restantes = 30;
+
     //  Verifica se é recebimento de ataque //
     if(*efetividade == -1)  {
         //  Verifica se existe peça nas coordenadas //
@@ -114,6 +116,14 @@ marcaAtaque(int **tabuleiro, int *efetividade, int horizontal, int vertical)
         }
         else
             *efetividade = 0;                                                           // Não acertou o ataque.
+    
+        //  Retorna o número de peças restantes //
+        for(int i = 0; i < TAMANHO; i++)
+            for(int j = 0; j < TAMANHO; j++)
+                if(tabuleiro[i][j] == -1)
+                    restantes--;
+
+        return restantes;
     } 
 
     //  Verifica se é envio de ataque bem sucedido  //
@@ -124,10 +134,9 @@ marcaAtaque(int **tabuleiro, int *efetividade, int horizontal, int vertical)
         tabuleiro[horizontal][vertical] = -1;
 
     //  Retorna o número de peças restantes //
-    int restantes = 30;
     for(int i = 0; i < TAMANHO; i++)
         for(int j = 0; j < TAMANHO; j++)
-            if(tabuleiro[i][j])
+            if(tabuleiro[i][j] == 1)
                 restantes--;
 
     return restantes;
@@ -172,5 +181,59 @@ hostname_to_ip(char *hostname, char *ip)
 
     return 0;
 
+}
+
+void
+colocaNavio(int **tabuleiro, int tamanho, int quantidade)
+{
+    int orientacao = -1;                                                                // Guarda a orientação do navio.
+    int linha, coluna;
+
+    srand(time(NULL));                                                                  // Necessário para gerar números aleatórios.
+
+    for(int i = 0; i < quantidade; i++) {
+        //  Gera posições aleatórias    //
+        while(1)    {
+            orientacao = rand() % 2;                                                    // 0 = vertical e 1 = horizontal.
+            if(orientacao)  {                                                           // Vertical.
+                coluna = rand() % TAMANHO;
+                linha = rand() % ((TAMANHO + 1) - tamanho);
+            }
+            else    {                                                                   // Horizontal.
+                coluna = rand() % ((TAMANHO + 1) - tamanho);
+                linha = rand() % TAMANHO;
+            }
+            if(posicaoValida(tabuleiro, coluna, linha, orientacao, tamanho))            // Verifica validade da posicao gerada.
+                break;
+        }
+
+        //  Coloca os navios no tabuleiro   //
+        for(int j = 0; j < tamanho; j++)    {
+            if(orientacao)                                                              // Vertical.
+                tabuleiro[linha + j][coluna] = 1;
+            else                                                                        // Horizontal.
+                tabuleiro[linha][coluna + j] = 1;
+        }
+    }
+}
+
+int
+posicaoValida(int **tabuleiro, int coluna, int linha, int orientacao, int tamanho)
+{
+    int valido = 1;                                                                     // Guarda se válido ou não.
+
+    //  Verifica validade   //
+    for(int i = 0; valido && (i < tamanho); i++)    {
+        if(orientacao)  {
+            if((tabuleiro[linha + i][coluna] != 0) && ((linha + i) < TAMANHO))
+                valido = 0;
+        }
+        else    {
+            if((tabuleiro[linha][coluna + i] != 0) && ((coluna + i) < TAMANHO))
+                valido = 0;
+        }
+    }
+
+    return valido;
 }
 

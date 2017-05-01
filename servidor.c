@@ -52,6 +52,7 @@ main(int argc, char **argv)
         return 1;
     }
 
+    srand(time(NULL));                                                                  // Para gerar números aleatórios.
     //  Loop externo, até que algum cliente se conecte   //
     while(1)    {
         fprintf(stdout, "Esperando conexões...\n");
@@ -70,8 +71,7 @@ main(int argc, char **argv)
         fprintf(stdout, "Conectado\n");
 
         //  Gera e posiciona a frota no tabuleiro   //
-        //int **tabuleiro = geraTabuleiro();
-        int **tabuleiro = recebeTabuleiro("arquivo.txt");
+        int **tabuleiro = geraTabuleiro();
 
         if(tabuleiro == NULL)   {                                                       // Verifica erro na definição do tabuleiro.
             fprintf(stderr, "Falha ao posicionar a frota.\n");
@@ -84,14 +84,11 @@ main(int argc, char **argv)
 
         int advContagem = 30;
         //  Loop interno, quando tem algum cliente conectado    //
-        int k = 0;
         while(cli != -1)  {
-printf("iteração = %d.\n", k++);
-            char coordenadas[5] = {0};                                                  // Recebe as coordenadas.
+            char coordenadas[4] = {0};                                                  // Recebe as coordenadas.
 
             //  Recebe coordenadas de defesa    //
             int recebido = recv(cli, (char *) &coordenadas, (size_t) sizeof(coordenadas), 0);
-printf("recebido = %s.\n", coordenadas);
             if(recebido < 0)    {
                 perror("recv-contra-ataque()");
                 break;
@@ -121,25 +118,14 @@ printf("recebido = %s.\n", coordenadas);
             }
 
             //  Gera coordenadas para envio //
-            srand(time(NULL));                                                          // Para gerar números aleatórios.
-            coordenadas[0] = (rand() % TAMANHO) + 97;
-            coordenadas[1] = ' ';
-            if((rand() % 2))  {                                                         // Número menor que 10.
-                coordenadas[2] = (rand() % TAMANHO) + 49;
-                coordenadas[3] = '\0';
-            }
-            else    {                                                                   // Número igual a 10.
-                coordenadas[2] = '1';
-                coordenadas[3] = '0';
-                coordenadas[4] = '\0';
-            }
+            sprintf(coordenadas, "%c %d", ((rand() % TAMANHO) + 97), ((rand() % TAMANHO) + 1));
+
 
             //  Envia ataque ao cliente //
             if(send(cli, (char *) &coordenadas, (size_t) strlen(coordenadas), 0) == -1) {
                 perror("send-ataque()");
                 break;
             }
-    printf("Enviando - %s.\n", coordenadas);
 
             //  Recebe efetividade do ataque    //
             efetivo = 0;
@@ -153,8 +139,6 @@ printf("recebido = %s.\n", coordenadas);
                 break;
             }
 
-printf("Efetividade = %d.\n", efetivo);
-
             //  Verifica efetividade    //
             if(efetivo)
                 advContagem--;
@@ -164,10 +148,11 @@ printf("Efetividade = %d.\n", efetivo);
                 fprintf(stdout, "SERVIDOR VENCEU!!!\n");
                 break;
             }
+
+            imprimeTabuleiro(tabuleiro);
         }
 
         close(cli);
-        //free(tabuleiro);
         for(int i = 0; i < TAMANHO; i++)
             free(tabuleiro[i]);
         free(tabuleiro);

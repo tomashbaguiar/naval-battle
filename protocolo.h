@@ -14,7 +14,7 @@
      * Cria, aleatoriamente um tabuleiro
      * e retorna a matriz formada.
      */
-    //int **geraTabuleiro();
+    int **geraTabuleiro();
 
     /*
      * Imprime tabuleiros.
@@ -41,5 +41,18 @@
      * Traduz nomes de domínios pra IP
      */
     int hostname_to_ip(char*, char*);
+
+    /*
+     * Coloca navios aleatoriamente no
+     * tabuleiro
+     */
+    void colocaNavio(int**, int, int);
+
+    /*
+     * Verifica a validade da posição
+     * gerada aleatoriamente para um
+     * navio
+     */
+    int posicaoValida(int**, int, int, int, int);
 
 #endif

@@ -77,7 +77,6 @@ main(int argc, char **argv)
         int vertical = 0;                                                               // Guarda a coordenada vertical.
         fprintf(stdout, "Digite 'P' se quiser ver os tabuleiros.\n");
         fprintf(stdout, "Digite as coordenadas para atacar.\n");
-        //fgets(comando, 5, stdin);
         int k = 0;
         char c = 0;
         while((c = fgetc(stdin)) != '\n')
