@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #include "protocolo.h"
 
-#define ARQUIVO arquivo.txt
+#define ARQUIVO "arquivo.txt"
 
 //  ./cliente <ip/nome> <porta>
 
@@ -17,11 +21,11 @@ main(int argc, char **argv)
         return 1;
     }
 
-    uint16_t porta = atoi(argv[2]);                                                     // Porta do servidor.
+    int porta = atoi(argv[2]);                                                          // Porta do servidor.
     
     //  Cria, e verifica, socket para se comunicar com o servidor    //
-    int socket = socket(AF_INET6, SOCK_STREAM, 0);                                      // Socket criado como IPv6 e TCP.
-    if(socket == -1)    {
+    int sock = socket(AF_INET6, SOCK_STREAM, 0);                                        // Socket criado como IPv6 e TCP.
+    if(sock == -1)    {
         perror("socket()");                                                             // Imprime erro na criação do socket.
         return 1;
     }
@@ -39,12 +43,12 @@ main(int argc, char **argv)
         fprintf(stderr, "Erro ao resolver dominio %s.\n", argv[1]);
         return 1;
     }
-    inet_pton(AF_INET6, ip, &serv.sin6_addr);                                           // Variável "in6_addr" recebe o endereço do servidor.
+    inet_pton(AF_INET6, ip, &servidor.sin6_addr);                                       // Variável "in6_addr" recebe o endereço do servidor.
 
     //  Conecta o cliente ao servidor e testa falha de conexão  //
-    if(connect(socket, (struct sockaddr *) &servidor, slen) < 0)    {
+    if(connect(sock, (struct sockaddr *) &servidor, slen) < 0)    {
         perror("connect()");
-        close(socket);
+        close(sock);
         return 1;
     }
 
@@ -52,7 +56,7 @@ main(int argc, char **argv)
     int **meuTabuleiro = recebeTabuleiro(ARQUIVO);
     if(meuTabuleiro == NULL)   {                                                        // Verifica erro na definição do tabuleiro.
         fprintf(stderr, "Falha ao posicionar a frota.\n");
-        close(socket);
+        close(sock);
         return 1;
     }
 
@@ -61,15 +65,24 @@ main(int argc, char **argv)
     for(int i = 0; i < TAMANHO; i++)
         advTabuleiro[i] = (int *) malloc(TAMANHO * sizeof(int));
 
-    //  Loop até que o jogo e encerre ou seja encerrado //
-    int acabou = 0;                                                                     // Determina o final do jogo.
-    while(!acabou)  {
-        char comando[4] = {0};
+    //  Coloca as casas do tabuleiro do servidor como não-visitadas //
+    for(int i = 0; i < TAMANHO; i++)
+        for(int j = 0; j < TAMANHO; j++)
+            advTabuleiro[i][j] = 0;
+
+    //  Loop até que o jogo encerre ou seja encerrado //
+    while(1)  {
+        char comando[5] = {0};
         int horizontal = 0;                                                             // Guarda a coordenada horizontal.
         int vertical = 0;                                                               // Guarda a coordenada vertical.
         fprintf(stdout, "Digite 'P' se quiser ver os tabuleiros.\n");
         fprintf(stdout, "Digite as coordenadas para atacar.\n");
-        fgets(comando, 4, stdin);
+        //fgets(comando, 5, stdin);
+        int k = 0;
+        char c = 0;
+        while((c = fgetc(stdin)) != '\n')
+            comando[k++] = c;
+        comando[k] = '\0';
         
         //   Verifica desejo de impressão de tabuleiros  //
         if(!strcmp(comando, "P"))    {
@@ -77,64 +90,67 @@ main(int argc, char **argv)
            imprimeTabuleiro(advTabuleiro);
         }
         //  Trata as coordenadas    //
-        else
+        else    {
             trataCoordenadas(comando, &horizontal, &vertical);                          // Recebe as coordenadas.
         
-        //  Envia ataque ao servidor    //
-        if(send(socket, (char *) &comando, (size_t) strlen(comando), 0) == -1)  {       // Verifica erro de envio.
-            perror("send-ataque()");
-            break;
-        }
+            //  Envia ataque ao servidor    //
+            if(send(sock, (char *) &comando, (size_t) strlen(comando), 0) == -1)  {         // Verifica erro de envio.
+                perror("send-ataque()");
+                break;
+            }
 
-        //  Recebe efetividade do ataque    //
-        int efetivo = 0;
-        int recebido = recv(socket, (int *) &efetivo, (size_t) sizeof(efetivo), 0);
-        if(recebido < 0)    {
-            perror("recv-efetividade()");
-            break;
-        }
-        else if(recebido == 0)  {
-            fprintf(stderr, "Conexão com servidor caiu.\n");
-            break;
-        }
+            //  Recebe efetividade do ataque    //
+            int efetivo = 0;
+            int recebido = recv(sock, (int *) &efetivo, (size_t) sizeof(efetivo), 0);
+            if(recebido < 0)    {
+                perror("recv-efetividade()");
+                break;
+            }
+            else if(recebido == 0)  {
+                fprintf(stderr, "Conexão com servidor caiu.\n");
+                break;
+            }
 
-        //  Verifica efetividade    //
-        int restantes = marcaAtaque(advTabuleiro, &efetivo);                            // Recebe quantas peças faltam para vitória.
+            //  Verifica efetividade    //
+            int restantes = marcaAtaque(advTabuleiro, &efetivo, horizontal, vertical);      // Recebe quantas peças faltam para vitória.
 
-        //  Verifica se venceu  //
-        if(!restantes)  {
-            fprintf(stdout, "VOCÊ VENCEU!!!!\n");
-            break;
-        }
+            //  Verifica se venceu  //
+            if(!restantes)  {
+                fprintf(stdout, "VOCÊ VENCEU!!!!\n");
+                break;
+            }
 
-        //  Recebe coordenadas de contra-ataque //
-        recebido = recv(socket, (char *) &comando, (size_t) sizeof(comando), 0);
-        if(recebido < 0)    {
-            perror("recv-contra-ataque()");
-            break;
-        }
-        else if(recebido == 0)  {
-            fprintf(stderr, "Conexão com servidor caiu.\n");
-            break;
-        }
-        comando[recebido] = '\0';
+            //  Recebe coordenadas de contra-ataque //
+            recebido = recv(sock, (char *) &comando, (size_t) sizeof(comando), 0);
+            if(recebido < 0)    {
+                perror("recv-contra-ataque()");
+                break;
+            }
+            else if(recebido == 0)  {
+                fprintf(stderr, "Conexão com servidor caiu.\n");
+                break;
+            }
         
-        efetivo = -1;
-        restantes = marcaAtque(meuTabuleiro, &efetivo);                                 // Recebe quantas peças faltam para derrota.
+            trataCoordenadas(comando, &horizontal, &vertical);
+        
+            efetivo = -1;
+            restantes = marcaAtaque(meuTabuleiro, &efetivo, horizontal, vertical);          // Recebe quantas peças faltam para derrota.
 
-        //  Envia efetividade   //
-        if(send(socket, (int *) &efetivo, (size_t) sizeof(efetivo), 0) == -1)   {       // Verifica erro no envio.
-            perror("send-contra-ataque()");
-            break;
-        }
+            //  Envia efetividade   //
+            if(send(sock, (int *) &efetivo, (size_t) sizeof(efetivo), 0) == -1)   {         // Verifica erro no envio.
+                perror("send-contra-ataque()");
+                break;
+            }
 
-        //  Verifica se perdeu  //
-        if(!restantes)  {
-            fprintf(stdout, "VOCÊ FOI DERROTADO.\n");
-            break;
+            //  Verifica se perdeu  //
+            if(!restantes)  {
+                fprintf(stdout, "VOCÊ FOI DERROTADO.\n");
+                break;
+            }
         }
     }
-    close(socket);                                                                      // Fecha o socket.
+
+    close(sock);                                                                        // Fecha o socket.
     for(int i = 0; i < TAMANHO; i++)
         free(meuTabuleiro[i]);
     free(meuTabuleiro);                                                                 // Libera a memória alocada para tabuleiro.
